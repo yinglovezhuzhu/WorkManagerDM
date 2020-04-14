@@ -22,6 +22,34 @@
         android:textAllCaps="false"
         android:text="Check System（Need Network）"/>
 
+    <Button
+        android:id="@+id/btnCheckSystemDelay"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAllCaps="false"
+        android:text="Check System（Delay 3000 mills）"/>
+
+    <Button
+        android:id="@+id/btnCheckDiskBackoff"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAllCaps="false"
+        android:text="Check Disk（Backoff）"/>
+
+    <Button
+        android:id="@+id/btnCheckNetworkWithInputOutput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAllCaps="false"
+        android:text="Check Network（Input/Output）"/>
+
+    <Button
+        android:id="@+id/btnCheckDiskWithProgress"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textAllCaps="false"
+        android:text="Check Disk（Progress）"/>
+
 
 
 
