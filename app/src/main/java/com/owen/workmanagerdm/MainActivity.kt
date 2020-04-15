@@ -8,6 +8,8 @@ import android.widget.Toast
 import androidx.lifecycle.Observer
 import androidx.work.*
 import kotlinx.android.synthetic.main.activity_main.*
+import kotlinx.coroutines.delay
+import java.lang.StringBuilder
 import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
@@ -15,10 +17,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
-        val periodicWorkRequest = PeriodicWorkRequestBuilder<CheckSystemWorker>(5L, TimeUnit.SECONDS)
-            .addTag("Check01")
-            .build()
 
         btnCheckSystem.setOnClickListener() {
             Log.e("TEST", "Start Checking system.")
@@ -114,6 +112,121 @@ class MainActivity : AppCompatActivity() {
             })
             WorkManager.getInstance(applicationContext).enqueue(checkDisk)
         }
+
+        btnCheckAllContinuation.setOnClickListener {
+            Log.e("TEST", "Start Checking All.")
+
+            // 创建工作链并提交到系统排队
+            WorkManager.getInstance(applicationContext)
+                .beginWith(OneTimeWorkRequestBuilder<ContinuationCheck1>().also {
+                    it.setInputData(workDataOf("name" to "Owen", "position" to "Manager"))
+                }.build())
+                .then(OneTimeWorkRequestBuilder<ContinuationCheck2>().build())
+                .then(listOf(OneTimeWorkRequestBuilder<ContinuationCheck3>().build(), OneTimeWorkRequestBuilder<ContinuationCheck4>().build()))
+                .then(OneTimeWorkRequestBuilder<ContinuationCheck5>().also {
+                    // 设置输入数据合并模式
+                    it.setInputMerger(ArrayCreatingInputMerger::class)
+                }.build())
+                .enqueue()
+
+
+        }
+
+        var checkDisk:PeriodicWorkRequest? = null
+        btnStartPeriodicWork.setOnClickListener {
+            Log.e("TEST", "Start Checking Disk periodic work")
+
+//            checkDisk = PeriodicWorkRequest.Builder(CheckDiskProgressWorker::class.java,
+//                PeriodicWorkRequest.MIN_PERIODIC_INTERVAL_MILLIS, TimeUnit.MILLISECONDS).build()
+
+            checkDisk = PeriodicWorkRequestBuilder<CheckDiskProgressWorker>(
+                PeriodicWorkRequest.MIN_PERIODIC_FLEX_MILLIS, TimeUnit.MILLISECONDS).build()
+
+            WorkManager.getInstance(applicationContext)
+                .getWorkInfoByIdLiveData(checkDisk!!.id)
+                .observe(this@MainActivity, object : Observer<WorkInfo> {
+                    override fun onChanged(t: WorkInfo?) {
+                        Log.e("TEST", "WorkRequest state: ${t?.state}")
+                        if(t?.state == WorkInfo.State.RUNNING) {
+                            Log.d("TEST", "Work progress --- ${t.progress.getInt("progress", 0)}")
+                            Toast.makeText(this@MainActivity, "Check disk... ${t.progress.getInt("progress", 0)}%", Toast.LENGTH_LONG).show()
+                        } else if(t?.state == WorkInfo.State.SUCCEEDED){
+                            Toast.makeText(this@MainActivity, "Check disk success", Toast.LENGTH_LONG).show()
+                        } else if(t?.state == WorkInfo.State.FAILED){
+                            Toast.makeText(this@MainActivity, "Check disk failed", Toast.LENGTH_LONG).show()
+                        } else if(t?.state == WorkInfo.State.CANCELLED){
+                            Toast.makeText(this@MainActivity, "Check disk canceled", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                })
+            WorkManager.getInstance(applicationContext).enqueue(checkDisk!!)
+        }
+
+        btnStopPeriodicWork.setOnClickListener {
+            Log.e("TEST", "Stop Checking Disk periodic work")
+            if(null != checkDisk) {
+                WorkManager.getInstance(applicationContext).cancelWorkById(checkDisk!!.id)
+            }
+        }
+
+        btnExistingWorkPolicyReplace.setOnClickListener {
+
+            WorkManager.getInstance(applicationContext).enqueueUniqueWork("checkDisk",
+                ExistingWorkPolicy.REPLACE,
+                OneTimeWorkRequestBuilder<DoWorker>()
+                    .setInputData(workDataOf("op" to "Check"))
+                    .build().also {
+                        Log.e("TEST", "${it.id} Check")
+                    })
+        }
+
+        btnExistingWorkPolicyKeep.setOnClickListener {
+            WorkManager.getInstance(applicationContext).enqueueUniqueWork("checkDisk",
+                ExistingWorkPolicy.KEEP,
+                OneTimeWorkRequestBuilder<DoWorker>()
+                    .setInputData(workDataOf("op" to "Check"))
+                    .build().also {
+                        Log.e("TEST", "${it.id} Check")
+                    })
+        }
+
+        btnExistingWorkPolicyAppend.setOnClickListener {
+            WorkManager.getInstance(applicationContext).enqueueUniqueWork("checkDisk",
+                ExistingWorkPolicy.APPEND,
+                OneTimeWorkRequestBuilder<DoWorker>()
+                    .setInputData(workDataOf("op" to "Check"))
+                    .build().also {
+                        Log.e("TEST", "${it.id} Check")
+                    })
+        }
+
+        btnUniqueWorkContinuation.setOnClickListener {
+
+//            WorkManager.getInstance(applicationContext).beginUniqueWork("check",
+//                ExistingWorkPolicy.KEEP,
+//                OneTimeWorkRequestBuilder<DoWorker>()
+//                    .setInputData(workDataOf("op" to "Check Disk"))
+//                    .build())
+//                .then(OneTimeWorkRequestBuilder<DoWorker>()
+//                    .setInputData(workDataOf("op" to "Check Network"))
+//                    .build())
+//                .then(OneTimeWorkRequestBuilder<DoWorker>()
+//                    .setInputData(workDataOf("op" to "Check System"))
+//                    .build())
+//                .enqueue()
+            WorkManager.getInstance(applicationContext).beginUniqueWork("check",
+                ExistingWorkPolicy.KEEP,
+                OneTimeWorkRequestBuilder<CWorker>()
+                    .setInputData(workDataOf("op" to "Check Disk"))
+                    .build())
+                .then(OneTimeWorkRequestBuilder<CWorker>()
+                    .setInputData(workDataOf("op" to "Check Network"))
+                    .build())
+                .then(OneTimeWorkRequestBuilder<CWorker>()
+                    .setInputData(workDataOf("op" to "Check System"))
+                    .build())
+                .enqueue()
+        }
     }
 }
 
@@ -152,6 +265,7 @@ class CheckDiskWorker(context: Context, workerParameters: WorkerParameters): Wor
         // 返回成功时，将不会再重试
         return Result.success()
     }
+
 }
 
 
@@ -204,11 +318,208 @@ class CheckDiskProgressWorker(context: Context, workerParameters: WorkerParamete
             it.putInt("progress", 100)
             it.build()
         })
-        Log.e("TEST", "Checking network done.")
+        Log.e("TEST", "Checking disk done.")
         return Result.success(Data.Builder().let {
             it.putInt("code", 200)
-            it.putString("msg", "Network is fine")
+            it.putString("msg", "Disk is fine")
             it.build()
         })
+    }
+
+
+}
+
+class ContinuationCheck1(context: Context, workerParameters: WorkerParameters): Worker(context, workerParameters) {
+
+    override fun doWork(): Result {
+        Log.e("TEST", "ContinuationCheck1 .......")
+
+        // 打印输入数据
+        val strB = StringBuilder("ContinuationCheck1 输入数据：\n")
+        for ((key, value) in inputData.keyValueMap) {
+            strB.append(key)
+                .append(" : ")
+                .append(value)
+                .append("\n")
+        }
+        Log.e("TEST", strB.toString())
+
+        Thread.sleep(3000)
+
+        Log.e("TEST", "ContinuationCheck1 done .......")
+
+        return Result.success(workDataOf("whereFrom" to "This is from ContinuationCheck1"))
+        // 如果失败了，所有从属的Worker都不会执行
+//        return Result.failure()
+    }
+}
+
+class ContinuationCheck2(context: Context, workerParameters: WorkerParameters): Worker(context, workerParameters) {
+
+    override fun doWork(): Result {
+        Log.e("TEST", "ContinuationCheck2 .......")
+
+        // 打印输入数据
+        val strB = StringBuilder("ContinuationCheck2 输入数据：\n")
+        for ((key, value) in inputData.keyValueMap) {
+            strB.append(key)
+                .append(" : ")
+                .append(value)
+                .append("\n")
+        }
+        Log.e("TEST", strB.toString())
+
+        Thread.sleep(3000)
+
+        Log.e("TEST", "ContinuationCheck2 done .......")
+
+        return Result.success(workDataOf("whereFrom" to "This is from ContinuationCheck2"))
+    }
+}
+
+class ContinuationCheck3(context: Context, workerParameters: WorkerParameters): Worker(context, workerParameters) {
+
+    override fun doWork(): Result {
+        Log.e("TEST", "ContinuationCheck3 .......")
+
+        // 打印输入数据
+        val strB = StringBuilder("ContinuationCheck3 输入数据：\n")
+        for ((key, value) in inputData.keyValueMap) {
+            strB.append(key)
+                .append(" : ")
+                .append(value)
+                .append("\n")
+        }
+        Log.e("TEST", strB.toString())
+
+        Thread.sleep(3000)
+
+        Log.e("TEST", "ContinuationCheck3 done .......")
+
+        return Result.success(workDataOf("whereFrom" to "This is from ContinuationCheck3"))
+    }
+}
+
+class ContinuationCheck4(context: Context, workerParameters: WorkerParameters): Worker(context, workerParameters) {
+
+    override fun doWork(): Result {
+        Log.e("TEST", "ContinuationCheck4 .......")
+
+        // 打印输入数据
+        val strB = StringBuilder("ContinuationCheck4 输入数据：\n")
+        for ((key, value) in inputData.keyValueMap) {
+            strB.append(key)
+                .append(" : ")
+                .append(value)
+                .append("\n")
+        }
+        Log.e("TEST", strB.toString())
+
+        Thread.sleep(3000)
+
+        Log.e("TEST", "ContinuationCheck4 done .......")
+
+        return Result.success(workDataOf("whereFrom" to "This is from ContinuationCheck4"))
+    }
+}
+
+class ContinuationCheck5(context: Context, workerParameters: WorkerParameters): Worker(context, workerParameters) {
+
+    override fun doWork(): Result {
+        Log.e("TEST", "ContinuationCheck5 .......")
+
+        // 打印输入数据
+        val strB = StringBuilder("ContinuationCheck5 输入数据：\n")
+        for ((key, value) in inputData.keyValueMap) {
+
+            strB.append(key)
+                .append(" : ")
+            // 使用了ArrayCreatingInputMerger，判断值是否为数组
+            if (value is Array<*>) {
+                strB.append("[")
+                (value as Array<*>).forEach {
+                    strB.append(it)
+                        .append(",")
+                }
+                strB.also {
+                    it.delete(it.lastIndexOf(",") - 1, it.length)
+                }.append("]")
+            } else {
+                strB.append(value)
+            }
+
+            strB.append("\n")
+        }
+        Log.e("TEST", strB.toString())
+
+        Thread.sleep(3000)
+
+        Log.e("TEST", "ContinuationCheck5 done .......")
+
+        return Result.success(workDataOf("whereFrom" to "This is from ContinuationCheck5"))
+    }
+
+
+}
+
+class DoWorker(context: Context, workerParameters: WorkerParameters): Worker(context, workerParameters) {
+
+    override fun doWork(): Result {
+
+        val op = inputData.getString("op");
+
+        Log.e("TEST", "$id $op .......")
+
+        try {
+            Thread.sleep(3000)
+        } catch (e: InterruptedException) {
+            onStopped()
+        }
+        if(isStopped) {
+            Log.e("TEST", "$id $op stopped!")
+            return Result.failure()
+        }
+        Log.e("TEST", "$id $op 50%.......")
+        try {
+            Thread.sleep(3000)
+        } catch (e: InterruptedException) {
+            onStopped()
+        }
+        if(isStopped) {
+            Log.e("TEST", "$id $op stopped!")
+            return Result.failure()
+        }
+        Log.e("TEST", "$id $op done .......")
+
+        return Result.success()
+    }
+
+    override fun onStopped() {
+        super.onStopped()
+    }
+}
+
+class CWorker(context: Context, workerParameters: WorkerParameters) : CoroutineWorker(context, workerParameters) {
+    override suspend fun doWork(): Result {
+        val op = inputData.getString("op");
+
+        Log.e("TEST", "$id $op .......")
+
+        delay(3000)
+
+        if(isStopped) {
+            Log.e("TEST", "$id $op stopped!")
+            return Result.failure()
+        }
+        Log.e("TEST", "$id $op 50%.......")
+
+        delay(3000)
+
+        if(isStopped) {
+            Log.e("TEST", "$id $op stopped!")
+            return Result.failure()
+        }
+        Log.e("TEST", "$id $op done .......")
+        return Result.success()
     }
 }

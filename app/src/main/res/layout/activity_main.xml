@@ -1,56 +1,134 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
+<ScrollView  xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="20dp"
-    tools:context=".MainActivity">
+    android:layout_height="match_parent">
 
-    <Button
-        android:id="@+id/btnCheckSystem"
+    <LinearLayout
+        xmlns:tools="http://schemas.android.com/tools"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:textAllCaps="false"
-        android:text="Check System（Simple）"/>
+        android:orientation="vertical"
+        android:padding="20dp"
+        tools:context=".MainActivity">
 
-    <Button
-        android:id="@+id/btnCheckSystemNetwork"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textAllCaps="false"
-        android:text="Check System（Need Network）"/>
+        <Button
+            android:id="@+id/btnCheckSystem"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAllCaps="false"
+            android:text="Check System（Simple）"/>
 
-    <Button
-        android:id="@+id/btnCheckSystemDelay"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textAllCaps="false"
-        android:text="Check System（Delay 3000 mills）"/>
+        <Button
+            android:id="@+id/btnCheckSystemNetwork"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAllCaps="false"
+            android:text="Check System（Need Network）"/>
 
-    <Button
-        android:id="@+id/btnCheckDiskBackoff"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textAllCaps="false"
-        android:text="Check Disk（Backoff）"/>
+        <Button
+            android:id="@+id/btnCheckSystemDelay"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAllCaps="false"
+            android:text="Check System（Delay 3000 mills）"/>
 
-    <Button
-        android:id="@+id/btnCheckNetworkWithInputOutput"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textAllCaps="false"
-        android:text="Check Network（Input/Output）"/>
+        <Button
+            android:id="@+id/btnCheckDiskBackoff"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAllCaps="false"
+            android:text="Check Disk（Backoff）"/>
 
-    <Button
-        android:id="@+id/btnCheckDiskWithProgress"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textAllCaps="false"
-        android:text="Check Disk（Progress）"/>
+        <Button
+            android:id="@+id/btnCheckNetworkWithInputOutput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAllCaps="false"
+            android:text="Check Network（Input/Output）"/>
+
+        <Button
+            android:id="@+id/btnCheckDiskWithProgress"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAllCaps="false"
+            android:text="Check Disk（Progress）"/>
+
+        <Button
+            android:id="@+id/btnCheckAllContinuation"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAllCaps="false"
+            android:text="CheckAll（Continuation）"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#FFBBAACC"
+            android:padding="10dp">
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:textAllCaps="false"
+                android:textSize="16sp"
+                android:textColor="@android:color/black"
+                android:padding="5dp"
+                android:text="PeriodicWorkRequest" />
+            <Button
+                android:id="@+id/btnStartPeriodicWork"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textAllCaps="false"
+                android:text="Start Work（PeriodicWorkRequest）"/>
+            <Button
+                android:id="@+id/btnStopPeriodicWork"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textAllCaps="false"
+                android:text="Stop Work（PeriodicWorkRequest）"/>
+        </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#FF3366FF"
+            android:padding="10dp">
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:textAllCaps="false"
+                android:textSize="16sp"
+                android:textColor="@android:color/black"
+                android:padding="5dp"
+                android:text="UniqueWork" />
+            <Button
+                android:id="@+id/btnExistingWorkPolicyReplace"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textAllCaps="false"
+                android:text="enqueueUniqueWork（REPLACE）"/>
+            <Button
+                android:id="@+id/btnExistingWorkPolicyKeep"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textAllCaps="false"
+                android:text="enqueueUniqueWork（KEEP）"/>
+            <Button
+                android:id="@+id/btnExistingWorkPolicyAppend"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textAllCaps="false"
+                android:text="enqueueUniqueWork（APPEND）"/>
+            <Button
+                android:id="@+id/btnUniqueWorkContinuation"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textAllCaps="false"
+                android:text="UniqueWorkContinuation"/>
+        </LinearLayout>
 
 
-
-
-</LinearLayout>
+    </LinearLayout>
+</ScrollView>
