@@ -1,16 +1,24 @@
 package com.owen.workmanagerdm
 
 import android.content.Context
-import androidx.appcompat.app.AppCompatActivity
+import android.os.AsyncTask
 import android.os.Bundle
+import android.telecom.Call
 import android.util.Log
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.concurrent.futures.CallbackToFutureAdapter
+import androidx.concurrent.futures.CallbackToFutureAdapter.Completer
 import androidx.lifecycle.Observer
 import androidx.work.*
+import com.google.common.util.concurrent.ListenableFuture
 import kotlinx.android.synthetic.main.activity_main.*
-import kotlinx.coroutines.delay
-import java.lang.StringBuilder
+import kotlinx.coroutines.*
+import java.io.IOException
+import java.util.concurrent.Executor
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import javax.security.auth.callback.Callback
 
 class MainActivity : AppCompatActivity() {
 
@@ -202,31 +210,34 @@ class MainActivity : AppCompatActivity() {
 
         btnUniqueWorkContinuation.setOnClickListener {
 
-//            WorkManager.getInstance(applicationContext).beginUniqueWork("check",
-//                ExistingWorkPolicy.KEEP,
-//                OneTimeWorkRequestBuilder<DoWorker>()
-//                    .setInputData(workDataOf("op" to "Check Disk"))
-//                    .build())
-//                .then(OneTimeWorkRequestBuilder<DoWorker>()
-//                    .setInputData(workDataOf("op" to "Check Network"))
-//                    .build())
-//                .then(OneTimeWorkRequestBuilder<DoWorker>()
-//                    .setInputData(workDataOf("op" to "Check System"))
-//                    .build())
-//                .enqueue()
             WorkManager.getInstance(applicationContext).beginUniqueWork("check",
                 ExistingWorkPolicy.KEEP,
-                OneTimeWorkRequestBuilder<CWorker>()
+                OneTimeWorkRequestBuilder<DoWorker>()
                     .setInputData(workDataOf("op" to "Check Disk"))
                     .build())
-                .then(OneTimeWorkRequestBuilder<CWorker>()
+                .then(OneTimeWorkRequestBuilder<DoWorker>()
                     .setInputData(workDataOf("op" to "Check Network"))
                     .build())
-                .then(OneTimeWorkRequestBuilder<CWorker>()
+                .then(OneTimeWorkRequestBuilder<DoWorker>()
                     .setInputData(workDataOf("op" to "Check System"))
                     .build())
                 .enqueue()
         }
+
+        btnCoroutineWorker.setOnClickListener {
+
+            WorkManager.getInstance(applicationContext)
+                .enqueue(OneTimeWorkRequestBuilder<CheckFileWorker>().build())
+        }
+
+        btnStartListenableWorker.setOnClickListener {
+            WorkManager.getInstance(applicationContext)
+                .enqueue(OneTimeWorkRequestBuilder<CheckFileListenableWorker>().addTag("listenableWork").build())
+        }
+        btnStoptListenableWorker.setOnClickListener {
+            WorkManager.getInstance(applicationContext).cancelAllWorkByTag("listenableWork")
+        }
+
     }
 }
 
@@ -499,27 +510,133 @@ class DoWorker(context: Context, workerParameters: WorkerParameters): Worker(con
     }
 }
 
-class CWorker(context: Context, workerParameters: WorkerParameters) : CoroutineWorker(context, workerParameters) {
-    override suspend fun doWork(): Result {
-        val op = inputData.getString("op");
+class CheckFileWorker(context: Context, workerParameters: WorkerParameters) : CoroutineWorker(context, workerParameters) {
+    override suspend fun doWork(): Result = coroutineScope {
+        val jobs = (0 until 20).map {
+            async {
+                checkFile(it)
+            }
+        }
 
-        Log.e("TEST", "$id $op .......")
+        val results = jobs.awaitAll()
+
+        results.forEach {
+            if(!it) {
+                Result.failure()
+            }
+        }
+
+        Result.success()
+    }
+
+
+//    override suspend fun doWork(): Result {
+//        val jobs = (0 until 20).map {
+//            checkFile(it)
+//        }
+//
+//        jobs.forEach {
+//            if (!it) {
+//                return Result.failure()
+//            }
+//        }
+//
+//        return Result.success()
+//    }
+
+    private suspend fun checkFile(num: Int): Boolean {
+        Log.e("TEST", "Checking file $num .......")
 
         delay(3000)
 
         if(isStopped) {
-            Log.e("TEST", "$id $op stopped!")
-            return Result.failure()
+            Log.e("TEST", "Checking file $num stopped!")
+            return false
         }
-        Log.e("TEST", "$id $op 50%.......")
-
+        Log.e("TEST", "Checking file $num 50%.......")
         delay(3000)
 
         if(isStopped) {
-            Log.e("TEST", "$id $op stopped!")
-            return Result.failure()
+            Log.e("TEST", "Checking file $num stopped!")
+            return false
         }
-        Log.e("TEST", "$id $op done .......")
-        return Result.success()
+        Log.e("TEST", "Checking file $num 100% done .......")
+
+        return true
     }
 }
+
+class CheckFileListenableWorker(context: Context, workerParameters: WorkerParameters) : ListenableWorker(context, workerParameters) {
+
+    override fun startWork(): ListenableFuture<Result> {
+//        return CallbackToFutureAdapter.getFuture {
+//
+//            Result.success()
+//        }
+
+        return CallbackToFutureAdapter.getFuture(CallbackToFutureAdapter.Resolver {
+
+            var succ = 0
+
+            val callback = object : Callback {
+                override fun onSuccess(id: Int) {
+                    Log.e("TEST", "File $id check success")
+                    succ++
+                    if(succ == 8) {
+                        it.set(Result.success())
+                    }
+                }
+
+                override fun onFail(id: Int) {
+                    Log.e("TEST", "File $id check failed")
+                    it.set(Result.failure())
+                }
+            }
+
+            it.addCancellationListener(object : Runnable {
+                override fun run() {
+                    Log.e("Test", "Worker was canceled!!!!!!!")
+                    // TODO 在这里可以取消异步线程的运行
+                }
+
+            }, Executors.newFixedThreadPool(8))
+
+            val jobs = (0 until 8).map { index ->
+                checkFileAsync(index, callback)
+            }
+
+            callback
+        })
+    }
+
+    private fun checkFileAsync(num: Int, callback: Callback): Boolean {
+        Thread(Runnable {
+            Log.e("TEST", "Checking file $num .......")
+
+            if(isStopped) {
+                Log.e("TEST", "Checking file $num stopped!")
+                return@Runnable
+            }
+            Log.e("TEST", "Checking file $num 50%.......")
+            Thread.sleep(3000)
+
+            if(isStopped) {
+                Log.e("TEST", "Checking file $num stopped!")
+                return@Runnable
+            }
+            Log.e("TEST", "Checking file $num 100% done .......")
+            callback.onSuccess(num)
+        }).start()
+
+        return true
+    }
+
+    interface Callback {
+
+        fun onSuccess(id: Int)
+
+
+        fun onFail(id: Int)
+    }
+}
+

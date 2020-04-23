@@ -2,6 +2,8 @@ package com.owen.workmanagerdm
 
 import android.app.Application
 import androidx.work.Configuration
+import java.util.concurrent.Executor
+import java.util.concurrent.Executors
 
 /**
  *
@@ -16,6 +18,7 @@ class MainApp : Application(), Configuration.Provider {
         return Configuration.Builder()
             .setMinimumLoggingLevel(android.util.Log.INFO)
             .setMaxSchedulerLimit(Configuration.MIN_SCHEDULER_LIMIT + 100)
+            .setExecutor(Executors.newFixedThreadPool(16))
             .build()
     }
 
